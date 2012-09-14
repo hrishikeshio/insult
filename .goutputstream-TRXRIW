@@ -1,0 +1,58 @@
+from nltk.classify import NaiveBayesClassifier
+import nltk
+import csv 
+import time
+import re
+a=time.time()
+X_train,y_train=[],[]
+with open('train.csv','rb') as f:
+    reader = csv.reader(f)
+    for row in reader:
+        X_train.append(row[2])
+        y_train.append(row[0])
+print "data processed"
+print time.time()-a
+
+def word_feats(words):
+    return dict([(word.lower(), True) for word in nltk.wordpunct_tokenize(words)])
+
+with open("positive-words.txt","rb") as f:
+	poswords=set([i.strip() for i in f])
+with open("negative-words.txt","rb") as f:
+	negwords=set([i.strip() for i in f])
+posfeats,negfeats=[],[]
+for i in range(len(X_train)):
+	if int(y_train[i])==0:
+		for word in nltk.wordpunct_tokenize(X_train[i]):
+			if word.isalpha() and word in poswords:
+				
+				posfeats.append(({word.lower():True},"0"))
+		#posfeats=dict(posfeats.items()+dict([(word.lower(),True) for word in nltk.wordpunct_tokenize(X_train[i])]).items())
+	else:
+		for word in nltk.wordpunct_tokenize(X_train[i]):
+			if word.isalpha() and word in negwords:
+				negfeats.append(({word.lower():True},"1"))
+		#negfeats.append(dict([(word.lower(),True) for word in nltk.wordpunct_tokenize(X_train[i])]))
+#print posfeats,len(posfeats)
+
+
+negcutoff = len(negfeats)
+poscutoff = len(posfeats)
+
+trainfeats = negfeats[:negcutoff] + posfeats[:poscutoff]
+testfeats = negfeats[negcutoff:] + posfeats[poscutoff:]
+
+#print trainfeats
+classifier = NaiveBayesClassifier.train(trainfeats)
+print 'accuracy:', nltk.classify.util.accuracy(classifier, testfeats)
+classifier.show_most_informative_features()
+ans=[]
+print "your" in word_feats("""Fuck you!""")
+with open("test.csv","rb") as f:
+	reader=csv.reader(f)
+	for row in reader:
+		ans.append([classifier.classify(word_feats(row[1])) and int("you" in word_feats(row[1])),row[0],row[1]])
+with open("naivebnltkwithlexyou.csv","wb") as f:
+	writer=csv.writer(f)
+	for i in ans:
+		writer.writerow(i)
